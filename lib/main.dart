@@ -98,7 +98,7 @@ class _MilkPromoPageState extends State<MilkPromoPage> {
 
     setState(() => isSubmitting = true);
 
-    final uri = Uri.parse('http://www.mglrndm.online:8000/lotteries/');
+    final uri = Uri.parse('http://www.mglrndm.online/lotteries/');
     print("POST URL: $uri");
 
     var request = http.MultipartRequest('POST', uri);
