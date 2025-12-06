@@ -228,11 +228,11 @@ class _MilkPromoPageState extends State<MilkPromoPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Center(child: Image.asset('assets/images/logo.png', height: isDesktop ? 80 : 60)),
+              Center(child: Image.asset('assets/images/mah_logo.png', height: isDesktop ? 80 : 60)),
               SizedBox(height: isDesktop ? 30 : 20),
               const Center(
                 child: Text(
-                  "Шинэ оны мэнд! 🎉\nУрамшууллын дугаар аа бүртгүүлнэ үү",
+                  "Шинэ оны мэнд! 🎉\nСугалааны дугаар аа бүртгүүлнэ үү",
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blueAccent),
                   textAlign: TextAlign.center,
                 ),
@@ -246,7 +246,7 @@ class _MilkPromoPageState extends State<MilkPromoPage> {
                 maxlength: 8,
               ),
               const SizedBox(height: 18),
-              _buildLabelInput("Урамшууллын дугаар", lotteryController),
+              _buildLabelInput("Сугалааны дугаар", lotteryController),
               const SizedBox(height: 18),
               FileInput(
                 label: "И-Баримт зураг",
@@ -280,7 +280,7 @@ class _MilkPromoPageState extends State<MilkPromoPage> {
                     backgroundColor: const Color(0xFF86AEE5),
                     textStyle: const TextStyle(fontWeight: FontWeight.bold),
                   ),
-                  child: const Text("Урамшуулалд оролцох", style: TextStyle(fontSize: 16, color: Colors.white)),
+                  child: const Text("Сугалаанд оролцох", style: TextStyle(fontSize: 16, color: Colors.white)),
                 ),
               ),
               const SizedBox(height: 35),
