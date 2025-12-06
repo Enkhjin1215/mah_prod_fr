@@ -232,7 +232,7 @@ class _MilkPromoPageState extends State<MilkPromoPage> {
               SizedBox(height: isDesktop ? 30 : 20),
               const Center(
                 child: Text(
-                  "Шинэ оны мэнд! 🎉\nСугалааны дугаар аа бүртгүүлнэ үү",
+                  "Шинэ оны мэнд! 🎉\nСугалааны дугаараа бүртгүүлнэ үү",
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blueAccent),
                   textAlign: TextAlign.center,
                 ),
@@ -256,7 +256,7 @@ class _MilkPromoPageState extends State<MilkPromoPage> {
                 },
               ),
               const SizedBox(height: 18),
-              const Text("Хаяг сонгон уу", style: TextStyle(fontWeight: FontWeight.w600)),
+              const Text("Хаяг сонгоно уу", style: TextStyle(fontWeight: FontWeight.w600)),
               const SizedBox(height: 6),
               AddressDropdown(
                 onChanged: ({required cityId, required districtId, required quarterId}) {
@@ -286,7 +286,7 @@ class _MilkPromoPageState extends State<MilkPromoPage> {
               const SizedBox(height: 35),
               Center(
                 child: Text(
-                  "МАХ ИМПЭКС ХХК",
+                  "МАХ ИМПЭКС ХК",
                   style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.blue[900]),
                 ),
               ),
