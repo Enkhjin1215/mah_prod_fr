@@ -1,0 +1,14 @@
+scp -i LightsailDefaultKey-ap-northeast-1.pem -r build/web admin@13.230.167.54:~/promo_temp
+ssh -i LightsailDefaultKey-ap-northeast-1.pem admin@13.230.167.54          
+
+
+sudo rm -rf /var/www/promo/*
+sudo mkdir -p /var/www/promo
+sudo cp -r ~/promo_temp/* /var/www/promo/
+sudo chown -R www-data:www-data /var/www/promo
+sudo chmod -R 755 /var/www/promo
+rm -rf ~/promo_temp
+sudo certbot renew --dry-run
+sudo systemctl restart nginx
+
+/home/ec2-user/mah/makh-impex-be/media/;

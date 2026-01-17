@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
@@ -29,22 +30,30 @@ class MilkPromoPage extends StatefulWidget {
   State<MilkPromoPage> createState() => _MilkPromoPageState();
 }
 
-class _MilkPromoPageState extends State<MilkPromoPage> {
+class _MilkPromoPageState extends State<MilkPromoPage> with SingleTickerProviderStateMixin {
   String cityId = '';
   String districtId = '';
   String quarterId = '';
 
   final TextEditingController phoneController = TextEditingController();
+  final TextEditingController checkPhoneController = TextEditingController();
+
   final TextEditingController lotteryController = TextEditingController();
+  late TabController _tabController;
 
   bool isSubmitting = false;
   PlatformFile? myEbarimtFile;
 
   final PageController _pageController = PageController();
   int _currentPage = 0;
+  bool isReady = false;
+  List<dynamic> phoneResults = [];
+  bool isChecking = false;
   @override
   void initState() {
     _autoScroll();
+    _tabController = TabController(length: 2, vsync: this);
+
     super.initState();
   }
 
@@ -80,25 +89,23 @@ class _MilkPromoPageState extends State<MilkPromoPage> {
     }
   }
 
+  bool ready() {
+    if (phoneController.text.isEmpty || lotteryController.text.isEmpty || myEbarimtFile == null || cityId == '' || quarterId == '') {
+      return false;
+    } else {
+      return true;
+    }
+  }
+
   Future<void> submitLottery() async {
-    print("==== SUBMIT LOTTERY START ====");
-
-    print("Phone: ${phoneController.text}");
-    print("Lottery Number: ${lotteryController.text}");
-    print("City ID: $cityId");
-    print("District ID: $districtId");
-    print("Quarter ID: $quarterId");
-    print("Selected File: ${myEbarimtFile?.name}");
-
     if (phoneController.text.isEmpty || lotteryController.text.isEmpty || myEbarimtFile == null) {
-      print("❌ ERROR: Required fields missing!");
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Бүх талбарыг бөглөнө үү!")));
       return;
     }
 
     setState(() => isSubmitting = true);
 
-    final uri = Uri.parse('http://www.mglrndm.online/lotteries/');
+    final uri = Uri.parse('https://mglrndm.online/lotteries/');
 
     var request = http.MultipartRequest('POST', uri);
 
@@ -119,7 +126,8 @@ class _MilkPromoPageState extends State<MilkPromoPage> {
       var file = await createMultipartFile(myEbarimtFile!);
       request.files.add(file);
     } else {
-      print("⚠ No file attached");
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Баримтны зургаа оруулна уу!")));
+      return;
     }
 
     try {
@@ -145,10 +153,40 @@ class _MilkPromoPageState extends State<MilkPromoPage> {
       }
     } catch (e) {
       print("🔥 Exception: $e");
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Алдаа гарлаа: $e")));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Алдаа гарлаа: ")));
     } finally {
       print("==== SUBMIT LOTTERY END ====");
       setState(() => isSubmitting = false);
+    }
+  }
+
+  Future<void> checkByPhone() async {
+    final phone = checkPhoneController.text;
+
+    setState(() {
+      isChecking = true;
+    });
+
+    final url = Uri.parse("https://mglrndm.online/by-phone/?phone_number=$phone");
+
+    final res = await http.get(url);
+    print('res:${res.statusCode}\n${res.body}');
+
+    if (res.statusCode == 200) {
+      if (res.body == "[]") {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Таны утсан дээр бүртгүүлсэн сугалаа олдсонгүй")));
+      }
+      setState(() {
+        phoneResults = jsonDecode(res.body);
+        isChecking = false;
+      });
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Таны утсан дээр бүртгүүлсэн сугалаа олдсонгүй")));
+
+      setState(() {
+        phoneResults = [];
+        isChecking = false;
+      });
     }
   }
 
@@ -159,6 +197,8 @@ class _MilkPromoPageState extends State<MilkPromoPage> {
     final bool isTablet = width >= 600 && width < 900;
 
     return Scaffold(
+      // Add this to prevent the background image/color from resizing awkwardly when keyboard opens
+      resizeToAvoidBottomInset: true,
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -178,6 +218,7 @@ class _MilkPromoPageState extends State<MilkPromoPage> {
                       ],
                     )
                   : SingleChildScrollView(
+                      // <--- 1. ADD THIS WRAPPER
                       child: Padding(
                         padding: EdgeInsets.symmetric(horizontal: isTablet ? 24 : 16, vertical: 16),
                         child: Column(
@@ -185,12 +226,13 @@ class _MilkPromoPageState extends State<MilkPromoPage> {
                             _buildDynamicImage(height: isTablet ? 300 : 200),
                             const SizedBox(height: 20),
                             _buildForm(isDesktop: false),
+                            // Add extra padding at bottom so keyboard doesn't hide the button
+                            SizedBox(height: MediaQuery.of(context).viewInsets.bottom > 0 ? 200 : 20),
                           ],
                         ),
                       ),
                     ),
             ),
-
             IgnorePointer(
               ignoring: true, // Prevents SnowFallAnimation from capturing touch events
               child: SnowFallAnimation(
@@ -211,76 +253,91 @@ class _MilkPromoPageState extends State<MilkPromoPage> {
     );
   }
 
-  // -------------------------
-  // FORM SECTION
-  // -------------------------
   Widget _buildForm({required bool isDesktop}) {
-    return SingleChildScrollView(
-      child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: isDesktop ? 60 : 16, vertical: 20),
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.9),
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 12, offset: const Offset(0, 4))],
-          ),
-          child: Column(
+    final double fullScreenHeight = MediaQuery.of(context).size.height + MediaQuery.of(context).viewInsets.bottom;
+
+    final double tabViewHeight = isDesktop ? 520 : (fullScreenHeight * 0.55).clamp(450.0, 700.0);
+
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: isDesktop ? 60 : 16, vertical: 20),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.9),
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 12, offset: const Offset(0, 4))],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(child: Image.asset('assets/images/mah_logo.png', height: isDesktop ? 100 : 80)),
+            SizedBox(height: isDesktop ? 10 : 0),
+
+            // Wrap TabBar in Material to avoid layout/theme issues on some devices
+            Material(
+              color: Colors.transparent,
+              child: TabBar(
+                controller: _tabController,
+                physics: NeverScrollableScrollPhysics(),
+                tabs: const [
+                  Tab(text: "Бүртгүүлэх"),
+                  Tab(text: "Шалгах"),
+                ],
+              ),
+            ),
+
+            SizedBox(height: isDesktop ? 30 : 20),
+
+            // Constrain the TabBarView height instead of using Expanded
+            SizedBox(
+              height: tabViewHeight,
+              child: TabBarView(
+                controller: _tabController,
+                physics: NeverScrollableScrollPhysics(),
+                children: [
+                  _buildFormDetail(isDesktop),
+                  _buildCheckTab(isDesktop: isDesktop),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCheckTab({required bool isDesktop}) {
+    return (phoneResults.isNotEmpty)
+        ? _buildPhoneResultList(isDesktop: isDesktop)
+        : Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Center(child: Image.asset('assets/images/mah_logo.png', height: isDesktop ? 80 : 60)),
               SizedBox(height: isDesktop ? 30 : 20),
-              const Center(
-                child: Text(
-                  "Шинэ оны мэнд! 🎉\nСугалааны дугаараа бүртгүүлнэ үү",
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blueAccent),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-              SizedBox(height: isDesktop ? 30 : 20),
+              Text("Хэрэглэгч та урамшууллын эрхээ шалгах утасны дугаараа оруулна уу:"),
+              SizedBox(height: 10),
               _buildLabelInput(
                 "Утасны дугаар",
-                phoneController,
+                checkPhoneController,
                 type: TextInputType.phone,
                 format: [FilteringTextInputFormatter.digitsOnly],
                 maxlength: 8,
               ),
-              const SizedBox(height: 18),
-              _buildLabelInput("Сугалааны дугаар", lotteryController),
-              const SizedBox(height: 18),
-              FileInput(
-                label: "И-Баримт зураг",
-                onFileSelected: (file) {
-                  myEbarimtFile = file;
-                  print("Сонгосон файл: ${file?.name}");
-                },
-              ),
-              const SizedBox(height: 18),
-              const Text("Хаяг сонгоно уу", style: TextStyle(fontWeight: FontWeight.w600)),
-              const SizedBox(height: 6),
-              AddressDropdown(
-                onChanged: ({required cityId, required districtId, required quarterId}) {
-                  setState(() {
-                    this.cityId = cityId ?? '';
-                    this.districtId = districtId ?? '';
-                    this.quarterId = quarterId ?? '';
-                  });
-                  print("CITY=$cityId DISTRICT=$districtId QUARTER=$quarterId");
-                },
-              ),
-              const SizedBox(height: 26),
+              SizedBox(height: 20),
               Center(
                 child: ElevatedButton(
-                  onPressed: () {
-                    submitLottery();
-                  },
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 40),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    backgroundColor: const Color(0xFF86AEE5),
+                    backgroundColor: Colors.blue[900],
                     textStyle: const TextStyle(fontWeight: FontWeight.bold),
                   ),
-                  child: const Text("Сугалаанд оролцох", style: TextStyle(fontSize: 16, color: Colors.white)),
+                  onPressed: checkready()
+                      ? () {
+                          // Шалгах үйлдэл энд
+                          checkByPhone();
+                        }
+                      : null,
+                  child: Text("Шалгах", style: TextStyle(fontSize: 16, color: Colors.white)),
                 ),
               ),
               const SizedBox(height: 35),
@@ -291,8 +348,129 @@ class _MilkPromoPageState extends State<MilkPromoPage> {
                 ),
               ),
             ],
+          );
+  }
+
+  Widget _buildPhoneResultList({required bool isDesktop}) {
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(height: isDesktop ? 30 : 20),
+          Text("Таны урамшууллын эрхүүд:", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          SizedBox(height: 15),
+
+          // List
+          ...phoneResults.map((item) {
+            final lotteryNumber = item["lottery_number"];
+            final masked = lotteryNumber.substring(0, lotteryNumber.length - 2) + "XX";
+
+            return Container(
+              margin: const EdgeInsets.symmetric(vertical: 8),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: Text(masked, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+            );
+          }).toList(),
+
+          const SizedBox(height: 20),
+
+          Center(
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 32),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                backgroundColor: Colors.blue[900],
+              ),
+              onPressed: () {
+                setState(() {
+                  phoneResults = [];
+                });
+              },
+              child: const Text("Буцах", style: TextStyle(color: Colors.white)),
+            ),
           ),
-        ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFormDetail(bool isDesktop) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.only(right: 8.0), // prevent overflow from scrollbar on small screens
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Center(
+            child: Text(
+              "Шинэ оны мэнд! 🎉\nСугалааны дугаараа бүртгүүлнэ үү",
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blueAccent),
+              textAlign: TextAlign.center,
+            ),
+          ),
+          SizedBox(height: isDesktop ? 30 : 20),
+          _buildLabelInput(
+            "Утасны дугаар",
+            phoneController,
+            type: TextInputType.phone,
+            format: [FilteringTextInputFormatter.digitsOnly],
+            maxlength: 8,
+          ),
+          const SizedBox(height: 18),
+          _buildLabelInput("Сугалааны дугаар", lotteryController),
+          const SizedBox(height: 18),
+          FileInput(
+            label: "И-Баримт зураг",
+            onFileSelected: (file) {
+              myEbarimtFile = file;
+              print("Сонгосон файл: ${file?.name}");
+            },
+          ),
+          const SizedBox(height: 18),
+          const Text("Хаяг сонгоно уу", style: TextStyle(fontWeight: FontWeight.w600)),
+          const SizedBox(height: 6),
+          AddressDropdown(
+            onChanged: ({required cityId, required districtId, required quarterId}) {
+              setState(() {
+                this.cityId = cityId ?? '';
+                this.districtId = districtId ?? '';
+                this.quarterId = quarterId ?? '';
+              });
+              print("CITY=$cityId DISTRICT=$districtId QUARTER=$quarterId");
+            },
+          ),
+          const SizedBox(height: 14),
+          Center(
+            child: ElevatedButton(
+              onPressed: ready()
+                  ? () {
+                      if (!isSubmitting) {
+                        submitLottery();
+                      }
+                    }
+                  : null,
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 40),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                backgroundColor: Colors.blue[900],
+                textStyle: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              child: const Text("Сугалаанд оролцох", style: TextStyle(fontSize: 16, color: Colors.white)),
+            ),
+          ),
+          const SizedBox(height: 35),
+          Center(
+            child: Text(
+              "МАХ ИМПЭКС ХК",
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.blue[900]),
+            ),
+          ),
+          // Add some bottom spacing so content isn't flush to the bottom
+          const SizedBox(height: 5),
+        ],
       ),
     );
   }
@@ -314,12 +492,21 @@ class _MilkPromoPageState extends State<MilkPromoPage> {
             controller: controller,
             maxLength: maxlength,
             inputFormatters: format,
+
             keyboardType: type,
-            decoration: InputDecoration(border: InputBorder.none, counterText: ''),
+            decoration: InputDecoration(border: InputBorder.none, counterText: '', hintText: label == 'Сугалааны дугаар' ? '80-2026XXXXX' : label),
           ),
         ),
       ],
     );
+  }
+
+  bool checkready() {
+    if (checkPhoneController.text.length == 8) {
+      return true;
+    } else {
+      return false;
+    }
   }
 
   // -------------------------
